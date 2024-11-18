@@ -1,4 +1,4 @@
-# Proyecto de Gestión de Tareas (To-Do List)
+# PRODUCTO 3 _ Proyecto de Gestión de Tareas (To-Do List)
 
 Este proyecto es una aplicación web para gestionar tareas, donde los usuarios pueden crear, editar, eliminar y organizar tareas en diferentes columnas. Se utiliza GraphQL para la comunicación con el backend, lo que permite realizar consultas y mutaciones de manera eficiente.
 
