@@ -6,10 +6,11 @@ const taskSchema = gql`
         title: String!
         description: String
         completed: Boolean
-        responsible: String    # Nuevo campo
+        responsible: String
         createdAt: String
         updatedAt: String
         panelId: ID!
+        status: String! # Nuevo campo
     }
 
     extend type Query {
@@ -18,10 +19,11 @@ const taskSchema = gql`
     }
 
     extend type Mutation {
-        createTask(title: String!, description: String, panelId: ID!, responsible: String!): Task # Nuevo campo en el input de creación
-        updateTask(id: ID!, title: String, description: String, completed: Boolean, responsible: String,): Task
+        createTask(title: String!, description: String, panelId: ID!, responsible: String!, status: String): Task
+        updateTask(id: ID!, title: String, description: String, completed: Boolean, responsible: String, status: String): Task
         deleteTask(id: ID!): Task
     }
 `;
+
 
 module.exports = taskSchema;

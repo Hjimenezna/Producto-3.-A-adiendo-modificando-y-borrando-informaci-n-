@@ -46,15 +46,13 @@ const taskResolver = {
     },
 
     Mutation: {
-        createTask: async (_, { title, description, panelId, responsible }) => { // Remover createdAt ya que se genera automáticamente
+        createTask: async (_, { title, description, panelId, responsible, status = 'por_hacer' }) => {
             try {
-                const newTask = new Task({ title, description, panelId, responsible });
+                const newTask = new Task({ title, description, panelId, responsible, status });
                 await newTask.save();
-
-                // Asegúrate de que Panel se ha importado y está disponible
+        
                 await Panel.findByIdAndUpdate(panelId, { $push: { tasks: newTask._id } });
-
-                // Convierte a ISO antes de devolver
+        
                 return {
                     id: newTask.id,
                     title: newTask.title,
@@ -63,26 +61,28 @@ const taskResolver = {
                     responsible: newTask.responsible,
                     createdAt: newTask.createdAt.toISOString(),
                     updatedAt: newTask.updatedAt.toISOString(),
-                    panelId: newTask.panelId
+                    panelId: newTask.panelId,
+                    status: newTask.status, // Devuelve el estado
                 };
             } catch (error) {
                 console.error("Error creating task:", error);
                 throw new Error("Error creating task");
             }
         },
+        
 
-        updateTask: async (_, { id, title, description, completed, responsible }) => {
+        updateTask: async (_, { id, title, description, completed, responsible, status }) => {
             try {
                 const updateData = {};
                 if (title) updateData.title = title;
                 if (description) updateData.description = description;
                 if (typeof completed !== 'undefined') updateData.completed = completed;
                 if (responsible) updateData.responsible = responsible;
-
+                if (status) updateData.status = status;
+        
                 const updatedTask = await Task.findByIdAndUpdate(id, updateData, { new: true });
                 if (!updatedTask) throw new Error(`Task with ID ${id} not found`);
-
-                // Convierte a ISO antes de devolver
+        
                 return {
                     id: updatedTask.id,
                     title: updatedTask.title,
@@ -91,13 +91,15 @@ const taskResolver = {
                     responsible: updatedTask.responsible,
                     createdAt: updatedTask.createdAt.toISOString(),
                     updatedAt: updatedTask.updatedAt.toISOString(),
-                    panelId: updatedTask.panelId
+                    panelId: updatedTask.panelId,
+                    status: updatedTask.status, // Devuelve el estado
                 };
             } catch (error) {
                 console.error("Error updating task:", error);
                 throw new Error("Error updating task");
             }
         },
+        
 
         deleteTask: async (_, { id }) => {
             try {
