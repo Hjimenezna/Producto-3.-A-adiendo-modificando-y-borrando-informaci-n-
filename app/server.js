@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const mongoose = require('mongoose');
 const { ApolloServer } = require('apollo-server-express');
 const { makeExecutableSchema } = require('@graphql-tools/schema');
@@ -22,11 +24,11 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Configura Express para servir archivos estáticos desde la carpeta raíz o "Producto1-proyecto"
-app.use(express.static(path.join(__dirname, 'Producto1-proyecto')));
+app.use(express.static(path.join(__dirname, 'www')));
 
 // Ruta para servir el archivo "index.html" en la raíz "/"
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'Producto1-proyecto', 'index.html'));
+    res.sendFile(path.join(__dirname, 'www', 'index.html'));
 });
 
 async function startServer() {

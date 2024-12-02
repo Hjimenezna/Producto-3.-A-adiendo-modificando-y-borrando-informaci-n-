@@ -72,3 +72,6 @@ PublishScripts/
 
 # Evitar conflictos de formato JSON
 *.json text
+
+# Ignore .env files
+.env
