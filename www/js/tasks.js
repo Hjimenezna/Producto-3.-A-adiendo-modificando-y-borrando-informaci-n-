@@ -105,27 +105,58 @@ async function updateTask(id, title, description, completed, responsible, status
 
 // Función para eliminar una tarea
 async function deleteTask(id) {
-    const mutation = `
-        mutation {
-            deleteTask(id: "${id}") {
-                id
+    // Mostrar la alerta de confirmación usando SweetAlert2
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: "Esta acción no se puede deshacer.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            // Si el usuario confirma, proceder con la eliminación
+            const mutation = `
+                mutation {
+                    deleteTask(id: "${id}") {
+                        id
+                    }
+                }
+            `;
+            try {
+                await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: mutation }),
+                });
+
+                // Actualizar las tareas después de eliminar
+                await displayTasks();
+
+                // Mostrar una alerta de éxito
+                Swal.fire(
+                    '¡Eliminada!',
+                    'La tarea ha sido eliminada con éxito.',
+                    'success'
+                );
+            } catch (error) {
+                console.error('Error eliminando la tarea:', error);
+
+                // Mostrar una alerta de error
+                Swal.fire(
+                    'Error',
+                    'Hubo un problema al intentar eliminar la tarea.',
+                    'error'
+                );
             }
         }
-    `;
-    try {
-        await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ query: mutation }),
-        });
-        await displayTasks();
-        alert("La tarea ha sido eliminada con éxito.");
-    } catch (error) {
-        console.error('Error deleting task:', error);
-    }
+    });
 }
+
 
 // Función para mostrar las tareas en las columnas
 async function displayTasks() {
