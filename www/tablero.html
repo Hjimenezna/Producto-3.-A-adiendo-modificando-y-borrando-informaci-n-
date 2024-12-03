@@ -38,11 +38,11 @@
                 <div class="row mt-4">
                     <div class="col-lg-4">
                         <h3>Por Hacer</h3>
-                        <div id="porHacer" class="tareas-columna" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                        <div id="por_hacer" class="tareas-columna" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
                     </div>
                     <div class="col-lg-4">
                         <h3>En Proceso</h3>
-                        <div id="enProceso" class="tareas-columna" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                        <div id="en_proceso" class="tareas-columna" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
                     </div>
                     <div class="col-lg-4">
                         <h3>Finalizado</h3>
@@ -78,8 +78,8 @@
                     <div class="mb-3">
                         <label for="newTaskEstado" class="form-label">Estado</label>
                         <select class="form-control" id="newTaskEstado" required>
-                            <option value="porHacer">Por Hacer</option>
-                            <option value="enProceso">En Proceso</option>
+                            <option value="por_hacer">Por Hacer</option>
+                            <option value="en_proceso">En Proceso</option>
                             <option value="finalizado">Finalizado</option>
                         </select>
                     </div>
@@ -97,12 +97,25 @@
     <script src="js/tablero.js"></script>
 
     <script>
-        window.onload = async function() {
-            const panelId = new URLSearchParams(window.location.search).get('panelId');
-            document.getElementById('panelId').value = panelId;
-            document.getElementById('panelTitle').textContent = `Tablero - Tareas para el Panel ID: ${panelId}`;
-            await displayTasks(); 
-        };
+            window.onload = async function () {
+        const panelId = new URLSearchParams(window.location.search).get('panelId');
+        
+        if (!panelId) {
+            console.error("Error: 'panelId' no está definido en la URL.");
+            alert("No se puede cargar el tablero porque falta el ID del panel en la URL.");
+            return; // Detén la ejecución si falta el ID del panel
+        }
+
+        document.getElementById('panelId').value = panelId;
+        document.getElementById('panelTitle').textContent = `Tablero - Tareas para el Panel ID: ${panelId}`;
+        
+        try {
+            await displayTasks(); // Carga las tareas solo si el panelId es válido
+        } catch (error) {
+            console.error("Error al cargar las tareas:", error);
+        }
+    };
+
     </script>
 
 <script src="js/main.js"></script>

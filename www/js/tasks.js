@@ -1,10 +1,14 @@
-// Archivo: js/tasks.js
+const apiUrl = 'http://localhost:4000/graphql'; // Asegúrate de que esta línea esté incluida solo una vez
 
-const apiUrl = 'http://localhost:4000/graphql'; // Cambia esto a la URL de tu servidor GraphQL
+// Obtener el panelId de la URL
+const panelId = new URLSearchParams(window.location.search).get('panelId');
+if (!panelId) {
+    console.error("Error: 'panelId' no está definido en la URL.");
+    alert("No se puede cargar el tablero porque falta el ID del panel en la URL.");
+    throw new Error("El ID del panel es obligatorio.");
+}
 
-
-
-// Obtener todas las tareas desde el backend
+// Función para obtener todas las tareas desde el backend
 async function fetchTasks() {
     const query = `
         query {
@@ -14,8 +18,9 @@ async function fetchTasks() {
                 description
                 completed
                 panelId
-                responsible 
+                responsible
                 createdAt
+                status
             }
         }
     `;
@@ -35,22 +40,22 @@ async function fetchTasks() {
     }
 }
 
-// Crear una nueva tarea con el campo responsible
-async function createTask(title, description, panelId, responsible) {  // Añadir responsible como parámetro
+// Función para crear una nueva tarea
+async function createTask(title, description, panelId, responsible, status) {
     const mutation = `
         mutation {
-            createTask(title: "${title}", description: "${description}", panelId: "${panelId}", responsible: "${responsible}") {
+            createTask(title: "${title}", description: "${description}", panelId: "${panelId}", responsible: "${responsible}", status: "${status}") {
                 id
                 title
                 description
+                status
                 completed
-                responsible       # Añadir responsible aquí
-                createdAt          # Añadir fecha de creación
+                responsible
+                createdAt
                 panelId
             }
         }
     `;
-
     try {
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -67,89 +72,21 @@ async function createTask(title, description, panelId, responsible) {  // Añadi
     }
 }
 
-// Función para eliminar una tarea con SweetAlert2
-async function deleteTask(id) {
-    // Mostrar alerta de confirmación
-    Swal.fire({
-        title: '¿Eliminar esta tarea?',
-        text: "Esta acción no puede deshacerse.",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#007bff', // Color del botón de confirmación (azul)
-        cancelButtonColor: '#d33',     // Color del botón de cancelación (rojo)
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            // Mutación para eliminar la tarea si el usuario confirma
-            const mutation = `
-                mutation {
-                    deleteTask(id: "${id}") {
-                        id
-                    }
-                }
-            `;
-            try {
-                await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ query: mutation }),
-                });
-
-                // Actualizar la visualización de las tareas
-                displayTasks();
-
-                // Alerta de éxito después de la eliminación
-                Swal.fire({
-                    title: 'Eliminada!',
-                    text: 'La tarea ha sido eliminada.',
-                    icon: 'success',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#28a745' // Color del botón "OK" en el popup de éxito (verde)
-                });
-            } catch (error) {
-                console.error('Error deleting task:', error);
-            }
-        }
-    });
-}
-
-// Manejo de arrastrar y soltar (drag and drop)
-function allowDrop(ev) {
-    ev.preventDefault();
-}
-
-function drag(ev) {
-    ev.dataTransfer.setData("text", ev.target.id);
-}
-
-function drop(ev) {
-    ev.preventDefault();
-    const taskId = ev.dataTransfer.getData("text");
-    const targetColumn = ev.target.id;
-    const taskElement = document.getElementById(taskId);
-    ev.target.appendChild(taskElement);
-
-    // Actualizar el estado de la tarea según la columna de destino
-    updateTaskColumn(taskId, targetColumn);
-}
-
-async function updateTask(id, title, description, completed, responsible, createdAt) {
+// Función para actualizar una tarea
+async function updateTask(id, title, description, completed, responsible, status) {
     const mutation = `
         mutation {
-            updateTask(id: "${id}", title: "${title}", description: "${description}", completed: ${completed}, responsible: "${responsible}") {
+            updateTask(id: "${id}", title: "${title}", description: "${description}", completed: ${completed}, responsible: "${responsible}", status: "${status}") {
                 id
                 title
                 description
                 completed
                 responsible
                 panelId
+                status
             }
         }
     `;
-
     try {
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -166,41 +103,43 @@ async function updateTask(id, title, description, completed, responsible, create
     }
 }
 
-
-// Abrir el modal en modo de edición
-function openEditModal(task) {
-    document.getElementById('newTaskTitle').value = task.title;
-    document.getElementById('newTaskDescription').value = task.description;
-    document.getElementById('panelId').value = task.panelId;
-
-    // Configura el botón de guardar para actualizar la tarea existente
-    const saveButton = document.getElementById('saveTaskButton');
-    saveButton.dataset.taskId = task.id;
-    saveButton.textContent = "Actualizar Tarea";
-
-    const editModal = new bootstrap.Modal(document.getElementById('newTaskModal'));
-    editModal.show();
+// Función para eliminar una tarea
+async function deleteTask(id) {
+    const mutation = `
+        mutation {
+            deleteTask(id: "${id}") {
+                id
+            }
+        }
+    `;
+    try {
+        await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: mutation }),
+        });
+        await displayTasks();
+        alert("La tarea ha sido eliminada con éxito.");
+    } catch (error) {
+        console.error('Error deleting task:', error);
+    }
 }
 
-
-// Función para mostrar tareas en las columnas
+// Función para mostrar las tareas en las columnas
 async function displayTasks() {
-    const tasks = await fetchTasks(); // Recupera las tareas
-    const porHacerCol = document.getElementById('porHacer');
-    const enProcesoCol = document.getElementById('enProceso');
+    const tasks = await fetchTasks();
+    const porHacerCol = document.getElementById('por_hacer');
+    const enProcesoCol = document.getElementById('en_proceso');
     const finalizadoCol = document.getElementById('finalizado');
 
-    // Obtener el panelId del campo oculto o del contexto actual
-    const currentPanelId = document.getElementById('panelId').value;
-
-    // Limpiar las columnas
     porHacerCol.innerHTML = '';
     enProcesoCol.innerHTML = '';
     finalizadoCol.innerHTML = '';
 
-    // Filtrar y mostrar tareas en las columnas correspondientes
     tasks.forEach(task => {
-        if (task.panelId === currentPanelId) { // Filtrar solo por el panelId correspondiente
+        if (task.panelId === panelId) {
             const taskCard = document.createElement('div');
             taskCard.classList.add('card', 'mb-3', 'draggable');
             taskCard.setAttribute('id', task.id);
@@ -208,57 +147,103 @@ async function displayTasks() {
             taskCard.ondragstart = drag;
 
             taskCard.innerHTML = `
-    <div class="card-body">
-        <h5 class="card-title">${task.title}</h5>
-        <p class="card-text">${task.description}</p>
-        <p class="card-text"><strong>Responsable:</strong> ${task.responsible}</p>   <!-- Mostrar responsable -->
-        <p class="card-text"><strong>Creado el:</strong> ${new Date(task.createdAt).toLocaleString()}</p> <!-- Mostrar fecha y hora de creación -->
-        <button class="btn btn-danger btn-sm" onclick="deleteTask('${task.id}')">Eliminar</button>
-        <button class="btn btn-primary btn-sm" onclick='openEditModal(${JSON.stringify(task)})'>Editar</button>
-    </div>
-`;
+                <div class="card-body">
+                    <h5 class="card-title">${task.title}</h5>
+                    <p class="card-text">${task.description}</p>
+                    <p class="card-text"><strong>Responsable:</strong> ${task.responsible}</p>
+                    <p class="card-text"><strong>Estado:</strong> ${task.status}</p>
+                    <button class="btn btn-danger btn-sm" onclick="deleteTask('${task.id}')">Eliminar</button>
+                    <button class="btn btn-primary btn-sm" onclick='openEditModal(${JSON.stringify(task)})'>Editar</button>
+                </div>
+            `;
 
-            // Añadir la tarea a la columna correspondiente
-            if (task.completed) {
-                finalizadoCol.appendChild(taskCard);
-            } else {
+            if (task.status === 'por_hacer') {
                 porHacerCol.appendChild(taskCard);
+            } else if (task.status === 'en_proceso') {
+                enProcesoCol.appendChild(taskCard);
+            } else if (task.status === 'finalizado') {
+                finalizadoCol.appendChild(taskCard);
             }
         }
     });
 }
 
+// Función para abrir el modal en modo edición
+function openEditModal(task) {
+    document.getElementById('newTaskTitle').value = task.title || '';
+    document.getElementById('newTaskDescription').value = task.description || '';
+    document.getElementById('panelId').value = task.panelId || '';
+    document.getElementById('newTaskEstado').value = task.status || '';
 
+    const saveButton = document.getElementById('saveTaskButton');
+    saveButton.dataset.taskId = task.id || '';
+    saveButton.textContent = "Actualizar Tarea";
+
+    const editModal = new bootstrap.Modal(document.getElementById('newTaskModal'));
+    editModal.show();
+}
+
+// Evento para guardar o actualizar una tarea
 document.getElementById('saveTaskButton').addEventListener('click', async function () {
     const taskId = this.dataset.taskId;
     const title = document.getElementById('newTaskTitle').value;
     const description = document.getElementById('newTaskDescription').value;
-    const responsible = document.getElementById('newTaskResponsible').value; // Obtener responsable aquí
-    const panelId = document.getElementById('panelId').value;
+    const responsible = document.getElementById('newTaskResponsible').value;
+    const status = document.getElementById('newTaskEstado').value;
 
     try {
         if (taskId) {
-            // Actualizar tarea existente, pasando todos los datos nuevos, incluyendo responsible y createdAt
-            await updateTask(taskId, title, description, false, responsible);
+            await updateTask(taskId, title, description, false, responsible, status);
             delete this.dataset.taskId;
             this.textContent = "Guardar";
         } else {
-            // Crear una nueva tarea, pero verifica si panelId está disponible
-            if (!panelId) {
-                console.error('Error: panelId no está definido');
-                alert('Esto es una prueba ESTATICA DE HTML, para crear nuevas tareas, crear un nuevo proyecto! ');
-                return; // Detener la ejecución si no hay panelId
-            }
-            await createTask(title, description, panelId, responsible); // Pasar responsible aquí
+            await createTask(title, description, panelId, responsible, status);
         }
-
-        await displayTasks(); // Refrescar la lista de tareas
+        await displayTasks();
         const modal = bootstrap.Modal.getInstance(document.getElementById('newTaskModal'));
         modal.hide();
-
     } catch (error) {
         console.error('Error al guardar la tarea:', error);
     }
 });
 
+// Definición de la función drag
+function drag(ev) {
+    ev.dataTransfer.setData("text", ev.target.id);
+}
 
+// Definición de la función drop
+function allowDrop(ev) {
+    ev.preventDefault();
+}
+
+async function drop(ev) {
+    ev.preventDefault();
+    const taskId = ev.dataTransfer.getData("text");
+    const targetColumn = ev.target.id;
+
+    const statusMap = {
+        por_hacer: 'por_hacer',
+        en_proceso: 'en_proceso',
+        finalizado: 'finalizado',
+    };
+
+    const newStatus = statusMap[targetColumn];
+    if (!newStatus) {
+        console.error("Estado de destino no válido:", targetColumn);
+        return;
+    }
+
+    const tasks = await fetchTasks();
+    const updatedTask = tasks.find(t => t.id === taskId);
+    if (updatedTask) {
+        await updateTask(updatedTask.id, updatedTask.title, updatedTask.description, false, updatedTask.responsible, newStatus);
+        displayTasks();
+    }
+}
+
+// Llamada inicial para mostrar las tareas
+window.onload = async function () {
+    document.getElementById('panelId').value = panelId;
+    await displayTasks();
+};
