@@ -11,6 +11,8 @@ const taskSchema = gql`
         updatedAt: String
         panelId: ID!
         status: String! # Campo obligatorio para el estado
+        files: [String] # Lista de archivos asociados
+
     }
 
     extend type Query {
@@ -34,9 +36,16 @@ const taskSchema = gql`
             completed: Boolean,
             responsible: String,
             status: String
+            files: [String] # para actualizar archivos
         ): Task
 
         deleteTask(id: ID!): Task
+
+        # Nueva mutación para agregar un archivo a una tarea
+        addFileToTask(
+            taskId: ID!,
+            fileName: String!
+        ): Task
     }
 `;
 

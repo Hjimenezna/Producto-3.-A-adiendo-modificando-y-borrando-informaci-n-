@@ -18,6 +18,7 @@ const taskResolver = {
                     updatedAt: task.updatedAt.toISOString(),
                     panelId: task.panelId,
                     status: task.status, // Devuelve el estado
+                    files: task.files, // Devuelve los archivos adjuntos
                 }));
             } catch (error) {
                 console.error("Error fetching tasks:", error);
@@ -40,6 +41,7 @@ const taskResolver = {
                     updatedAt: task.updatedAt.toISOString(),
                     panelId: task.panelId,
                     status: task.status, // Devuelve el estado
+                    files: task.files, // Devuelve los archivos adjuntos
                 };
             } catch (error) {
                 console.error("Error fetching task:", error);
@@ -73,6 +75,7 @@ const taskResolver = {
                     updatedAt: newTask.updatedAt.toISOString(),
                     panelId: newTask.panelId,
                     status: newTask.status,
+                    files: newTask.files, // Devuelve los archivos adjuntos
                 };
             } catch (error) {
                 console.error("Error creating task:", error);
@@ -81,7 +84,7 @@ const taskResolver = {
         },
 
         // Actualizar una tarea
-        updateTask: async (_, { id, title, description, completed, responsible, status }) => {
+        updateTask: async (_, { id, title, description, completed, responsible, status, files }) => {
             try {
                 const updateData = {};
                 if (title) updateData.title = title;
@@ -89,6 +92,7 @@ const taskResolver = {
                 if (typeof completed !== 'undefined') updateData.completed = completed;
                 if (responsible) updateData.responsible = responsible;
                 if (status) updateData.status = status;
+                if (files) updateData.files = files;
 
                 const updatedTask = await Task.findByIdAndUpdate(id, updateData, { new: true });
                 if (!updatedTask) throw new Error(`Task with ID ${id} not found`);
@@ -103,10 +107,38 @@ const taskResolver = {
                     updatedAt: updatedTask.updatedAt.toISOString(),
                     panelId: updatedTask.panelId,
                     status: updatedTask.status,
+                    files: updatedTask.files, // Devuelve los archivos adjuntos
                 };
             } catch (error) {
                 console.error("Error updating task:", error);
                 throw new Error("Error updating task");
+            }
+        },
+
+        // Agregar un archivo a una tarea
+        addFileToTask: async (_, { taskId, fileName }) => {
+            try {
+                const task = await Task.findById(taskId);
+                if (!task) throw new Error(`Task with ID ${taskId} not found`);
+
+                task.files.push(fileName);
+                await task.save();
+
+                return {
+                    id: task.id,
+                    title: task.title,
+                    description: task.description,
+                    completed: task.completed,
+                    responsible: task.responsible,
+                    createdAt: task.createdAt.toISOString(),
+                    updatedAt: task.updatedAt.toISOString(),
+                    panelId: task.panelId,
+                    status: task.status,
+                    files: task.files, // Devuelve los archivos adjuntos
+                };
+            } catch (error) {
+                console.error("Error adding file to task:", error);
+                throw new Error("Error adding file to task");
             }
         },
 

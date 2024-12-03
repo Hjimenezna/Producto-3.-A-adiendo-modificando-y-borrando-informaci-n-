@@ -1,8 +1,9 @@
-const apiUrl = 'http://localhost:4000/graphql'; // URL del servidor GraphQL
+//import apiUrl from './configFrontend.js';
+
 let panelToDeleteId = null; // Variable para almacenar el ID del panel a eliminar
 
 // Obtener todos los paneles desde el backend
-async function fetchPanels() {
+const fetchPanels = async () => {
     const query = `
         query {
             getPanels {
@@ -13,7 +14,6 @@ async function fetchPanels() {
                     id
                     title
                     description
-                    completed
                 }
             }
         }
@@ -21,18 +21,19 @@ async function fetchPanels() {
     try {
         const response = await fetch(apiUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query }),
         });
 
+        if (!response.ok) throw new Error('Error en fetchPanels');
         const { data } = await response.json();
         return data.getPanels;
     } catch (error) {
-        console.error('Error fetching panels:', error);
+        console.error('Error en fetchPanels:', error);
     }
-}
+};
+
+
 
 // Crear un nuevo panel
 async function createPanel(name, description) {

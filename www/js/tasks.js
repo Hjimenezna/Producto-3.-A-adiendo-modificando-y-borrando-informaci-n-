@@ -1,7 +1,8 @@
-const apiUrl = 'http://localhost:4000/graphql'; // Asegúrate de que esta línea esté incluida solo una vez
-
-// Obtener el panelId de la URL
-const panelId = new URLSearchParams(window.location.search).get('panelId');
+// Obtener el ID del panel desde la URL
+const panelId = (() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('panelId');
+})();
 if (!panelId) {
     console.error("Error: 'panelId' no está definido en la URL.");
     alert("No se puede cargar el tablero porque falta el ID del panel en la URL.");
@@ -21,22 +22,17 @@ async function fetchTasks() {
                 responsible
                 createdAt
                 status
+                files
             }
         }
     `;
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ query }),
-        });
 
-        const { data } = await response.json();
+    try {
+        const data = await window.graphqlQuery(query);
         return data.getTasks;
     } catch (error) {
-        console.error('Error fetching tasks:', error);
+        console.error('Error al obtener las tareas:', error);
+        throw error;
     }
 }
 
@@ -57,18 +53,11 @@ async function createTask(title, description, panelId, responsible, status) {
         }
     `;
     try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ query: mutation }),
-        });
-
-        const { data } = await response.json();
+        const data = await window.graphqlQuery(mutation);
         return data.createTask;
     } catch (error) {
-        console.error('Error creating task:', error);
+        console.error('Error al crear la tarea:', error);
+        throw error;
     }
 }
 
@@ -88,75 +77,40 @@ async function updateTask(id, title, description, completed, responsible, status
         }
     `;
     try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ query: mutation }),
-        });
-
-        const { data } = await response.json();
+        const data = await window.graphqlQuery(mutation);
         return data.updateTask;
     } catch (error) {
-        console.error('Error updating task:', error);
+        console.error('Error al actualizar la tarea:', error);
+        throw error;
     }
 }
 
 // Función para eliminar una tarea
 async function deleteTask(id) {
-    // Mostrar la alerta de confirmación usando SweetAlert2
-    Swal.fire({
-        title: '¿Estás seguro?',
-        text: "Esta acción no se puede deshacer.",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            // Si el usuario confirma, proceder con la eliminación
-            const mutation = `
-                mutation {
-                    deleteTask(id: "${id}") {
-                        id
-                    }
-                }
-            `;
-            try {
-                await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ query: mutation }),
-                });
-
-                // Actualizar las tareas después de eliminar
-                await displayTasks();
-
-                // Mostrar una alerta de éxito
-                Swal.fire(
-                    '¡Eliminada!',
-                    'La tarea ha sido eliminada con éxito.',
-                    'success'
-                );
-            } catch (error) {
-                console.error('Error eliminando la tarea:', error);
-
-                // Mostrar una alerta de error
-                Swal.fire(
-                    'Error',
-                    'Hubo un problema al intentar eliminar la tarea.',
-                    'error'
-                );
+    const mutation = `
+        mutation {
+            deleteTask(id: "${id}") {
+                id
             }
         }
-    });
+    `;
+    try {
+        await window.graphqlQuery(mutation);
+        await displayTasks(); // Actualizar la vista después de eliminar
+        Swal.fire(
+            '¡Eliminada!',
+            'La tarea ha sido eliminada con éxito.',
+            'success'
+        );
+    } catch (error) {
+        console.error('Error al eliminar la tarea:', error);
+        Swal.fire(
+            'Error',
+            'Hubo un problema al intentar eliminar la tarea.',
+            'error'
+        );
+    }
 }
-
 
 // Función para mostrar las tareas en las columnas
 async function displayTasks() {
@@ -177,14 +131,22 @@ async function displayTasks() {
             taskCard.setAttribute('draggable', 'true');
             taskCard.ondragstart = drag;
 
+            const fileIcon = task.files && task.files.length > 0
+            ? `<button class="btn btn-link p-0" onclick="openFilePopup('/uploads/${task.files[0]}')">
+                <i class="bi bi-file-earmark-text" style="font-size: 1.5rem; color: #007bff;"></i>
+               </button>`
+            : '';
+
             taskCard.innerHTML = `
                 <div class="card-body">
                     <h5 class="card-title">${task.title}</h5>
                     <p class="card-text">${task.description}</p>
                     <p class="card-text"><strong>Responsable:</strong> ${task.responsible}</p>
                     <p class="card-text"><strong>Estado:</strong> ${task.status}</p>
+                    ${fileIcon} <!-- Mostrar ícono si hay archivo -->
                     <button class="btn btn-danger btn-sm" onclick="deleteTask('${task.id}')">Eliminar</button>
                     <button class="btn btn-primary btn-sm" onclick='openEditModal(${JSON.stringify(task)})'>Editar</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openAttachFileModal('${task.id}')">Adjuntar Archivo</button>
                 </div>
             `;
 
@@ -273,8 +235,122 @@ async function drop(ev) {
     }
 }
 
+// Función para abrir el modal de adjuntar archivos
+function openAttachFileModal(taskId) {
+    if (!taskId) {
+        alert('Error: El ID de la tarea no está disponible.');
+        return;
+    }
+    document.getElementById('attachTaskId').value = taskId; // Guardamos el ID de la tarea
+    const modal = new bootstrap.Modal(document.getElementById('attachFileModal'));
+    modal.show();
+}
+
+// Función para subir un archivo
+async function uploadFile() {
+    const taskId = document.getElementById('attachTaskId').value;
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert("Por favor, selecciona un archivo antes de continuar.");
+        return;
+    }
+
+    try {
+        const data = await window.uploadFileToServer(taskId, file);
+        alert("Archivo subido con éxito.");
+        await displayTasks();
+    } catch (error) {
+        console.error("Error al subir el archivo:", error);
+    }
+}
+
+// Función para construir la URL completa de los archivos subidos
+window.getFullFilePath = function(filePath) {
+    // Asegúrate de que el filePath no comience con http:// o https://
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        return filePath; // La ruta ya es completa
+    }
+
+    // Asegúrate de que no se duplique "/uploads/"
+    const cleanedPath = filePath.startsWith('/uploads/') ? filePath.replace('/uploads/', '') : filePath;
+
+    // Construye la URL completa usando la base URL para uploads
+    return `${window.uploadBaseUrl}/${cleanedPath}`;
+};
+
+function openFilePopup(filePath) {
+    // Genera la URL completa usando el dominio y puerto del backend
+    const filePathAdjusted = `${window.uploadBaseUrl}${filePath.replace('/uploads/', '')}`;
+
+    const fileExtension = filePath.split('.').pop().toLowerCase();
+    let content = '';
+
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExtension)) {
+        // Mostrar imágenes
+        content = `<img src="${filePathAdjusted}" alt="Archivo adjunto" style="max-width: 90%; height: auto; margin: 0 auto; display: block;">`;
+    } else if (fileExtension === 'pdf') {
+        // Mostrar PDF
+        content = `<iframe src="${filePathAdjusted}" style="width: 100%; height: 300px;" frameborder="0"></iframe>`;
+    } else if (['txt'].includes(fileExtension)) {
+        // Mostrar contenido de texto
+        content = `
+            <div style="max-width: 100%; height: 300px; overflow-y: auto; white-space: pre-wrap; background-color: #f8f9fa; border: 1px solid #ddd; padding: 10px;">
+                Cargando contenido...
+            </div>
+            <script>
+                fetch("${filePathAdjusted}")
+                    .then(response => response.text())
+                    .then(text => document.querySelector('.swal2-html-container div').textContent = text)
+                    .catch(error => console.error('Error al cargar el archivo de texto:', error));
+            </script>
+        `;
+    } else {
+        // Otros tipos de archivos: mostrar botón de descarga
+        content = `
+            <p>El archivo no se puede previsualizar. Haz clic en el botón para descargarlo:</p>
+            <a href="${filePathAdjusted}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                Abrir en otra ventana
+            </a>
+        `;
+    }
+
+     // Botón de descarga con estilo SweetAlert
+     const downloadButton = `
+     <div style="margin-top: 15px; text-align: center;">
+         <button onclick="forceDownload('${filePathAdjusted}')" class="btn-download custom-download-button" style="display: inline-block; margin-top: 10px;">
+             Descargar automáticamente
+         </button>
+     </div>
+ `;
+
+ Swal.fire({
+    title: 'Archivo adjunto',
+    html: content + downloadButton, // Mostrar contenido y botón de descarga
+    width: '50%', // Ancho del pop-up
+    showCloseButton: true, // Mantener la cruz en la esquina
+    showConfirmButton: false, // Eliminar el botón de confirmación "Cerrar"
+    focusConfirm: false,
+ });
+}
+
+// Función para forzar la descarga del archivo
+function forceDownload(fileUrl) {
+ const a = document.createElement('a');
+ a.href = fileUrl;
+ a.download = fileUrl.split('/').pop(); // Extrae el nombre del archivo
+ document.body.appendChild(a);
+ a.click();
+ document.body.removeChild(a);
+}
+  
+
+
+
+
+
 // Llamada inicial para mostrar las tareas
 window.onload = async function () {
-    document.getElementById('panelId').value = panelId;
     await displayTasks();
 };
