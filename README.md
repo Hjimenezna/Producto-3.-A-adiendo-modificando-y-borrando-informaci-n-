@@ -42,6 +42,18 @@ Este proyecto es una aplicación web para gestionar tareas, donde los usuarios p
 ## Instrucciones para Ejecutar el Proyecto
 
 1. **Instalación de Dependencias**: Asegúrate de tener un servidor GraphQL en funcionamiento en `http://localhost:4000/graphql`. Puedes usar Apollo Server, Express GraphQL u otro.
+
+         ├── @graphql-tools/merge@9.0.8
+         ├── @graphql-tools/schema@10.0.7
+         ├── apollo-server-express@3.13.0
+         ├── cors@2.8.5
+         ├── dotenv@16.4.7
+         ├── express@4.21.1
+         ├── graphql@15.9.0
+         ├── mongodb@6.10.0
+         ├── mongoose@7.8.3
+         ├── multer@1.4.5-lts.1
+         └── nodemon@3.1.7
    
 2. **Abrir el Proyecto**: Abre el archivo `index.html` en un navegador web.
 
